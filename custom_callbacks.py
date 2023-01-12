@@ -17,10 +17,10 @@ class CustomCallbacks(DefaultCallbacks):
 	
 	def on_algorithm_init(self, *, algorithm, **kwargs):
 		# wandb server 
-		# wandb.init(project='RLlib')
+		wandb.init(project='RLlib')
 		now = datetime.now()
 		name = now.strftime("_%m_%d_%Y_%H_%M_%S")
-		# wandb.run.name='PPO'+name
+		wandb.run.name='PPO'+name
 		# monitoring 
 		self.time=0
 
@@ -40,9 +40,7 @@ class CustomCallbacks(DefaultCallbacks):
 	# 		"ERROR: `on_episode_start()` callback should be called right "
 	# 		"after env reset!"
 	# 	)
-	# 	print("episode {} (env-idx={}) started.".format(episode.episode_id, env_index))
-		# episode.user_data["pole_angles"] = []
-		# episode.hist_data["pole_angles"] = []
+	
 
 	# def on_episode_step(
 	# 	self,
@@ -59,11 +57,7 @@ class CustomCallbacks(DefaultCallbacks):
 	# 		"ERROR: `on_episode_step()` callback should not be called right "
 	# 		"after env reset!"
 	# 	)
-		# print("Last info {}".format(episode.last_info_for()))
-		# pole_angle = abs(episode.last_observation_for()[2])
-		# raw_angle = abs(episode.last_raw_obs_for()[2])
-		# assert pole_angle == raw_angle
-		# episode.user_data["pole_angles"].append(pole_angle)
+	
 
 	# def on_episode_end(
 	# 	self,
@@ -86,15 +80,7 @@ class CustomCallbacks(DefaultCallbacks):
 	# 			"after episode is done!"
 	# 		)
 	# 	print('Total reward episode : ', episode.total_reward)
-		# pole_angle = np.mean(episode.user_data["pole_angles"])
-		# print(
-		# 	"episode {} (env-idx={}) ended with length {} and pole "
-		# 	"angles {}".format(
-		# 		episode.episode_id, env_index, episode.length, pole_angle
-		# 	)
-		# )
-		# episode.custom_metrics["pole_angle"] = pole_angle
-		# episode.hist_data["pole_angles"] = episode.user_data["pole_angles"]
+	
 
 	# def on_sample_end(self, *, worker: RolloutWorker, samples: SampleBatch, **kwargs):
 	# 	print("returned sample batch of size {}".format(samples.count))
@@ -105,10 +91,7 @@ class CustomCallbacks(DefaultCallbacks):
 	# 			algorithm, result["episodes_this_iter"]
 	# 		)
 	# 	)
-	# 	# you can mutate the result dict to add new fields to return
-	# 	result["callback_ok"] = True
-	# 	print("TRAINING COMPLETED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		# print('VAR : ',self.VAR)
+	
 
 	# def on_learn_on_batch(
 	# 	self, *, policy: Policy, train_batch: SampleBatch, result: dict, **kwargs
@@ -149,38 +132,23 @@ class CustomCallbacks(DefaultCallbacks):
 		"""
 		num_healthy_workers=result['num_healthy_workers']
 		# wandb
-		data={}
-		recursif_dict(result)
+		data={'time': self.time}
+		recursif_wandb(result['info'],data)
+		recursif_wandb(result['sampler_results'], data)
 		# time 
-		data['training/time']=self.time
-		episode_reward=result['sampler_results']['hist_stats']['episode_reward']
-		# reward
-		if len(episode_reward)>0 :
-			current_episode_reward=episode_reward[-num_healthy_workers:]
-			# mean reward 
-			data['training/episodic_reward_mean']=np.mean(current_episode_reward)
-			# max
-			data['training/episodic_reward_max']=np.max(current_episode_reward)
-			# min
-			data['training/episodic_reward_min']=np.min(current_episode_reward)
-			# std 
-			data['training/episodic_reward_std']=np.std(current_episode_reward)
-
-		if 'default_policy' in result['info']['learner'].keys():
-			loss_data=result['info']['learner']['default_policy']['learner_stats']
-			# policy_loss
-			data['training/policy_loss']=loss_data['policy_loss']
-			# total_loss
-			data['training/total_loss']=loss_data['total_loss']
-			# vf_explained_var
-			data['training/vf_explained_var']=loss_data['vf_explained_var']
-			# vf_loss
-			data['training/vf_loss']=loss_data['vf_loss']
-		# log 
-		# wandb.log(data)
+		self.time+=1
+		wandb.log(data)
+		
 
 def recursif_dict(d,k=0):
 	if isinstance(d,dict) :
 		for key in d.keys():
-			print(k*str('   ')+key) if isinstance(d[key],dict) else print(k*str('   ')+key+' : '+str(d[key]))
+			print(k*str('    ')+key) if isinstance(d[key],dict) else print(k*str('   ')+key+' : '+str(d[key]))
 			recursif_dict(d[key],k+1)
+
+def recursif_wandb(d,o,k=0):
+	if isinstance(d,dict) :
+		for key in d.keys():
+			if isinstance(d[key],float):
+				o[key] = d[key]  
+			recursif_wandb(d[key],o,k+1)
